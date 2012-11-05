@@ -59,11 +59,12 @@ create table npo.filings (
 
 --indexes and foreign keys
 create index files_name_idx on npo.files(name);
+create index irs_raw_file_id_idx on npo.irs_raw(file_id);
 create index orgs_name_idx on npo.orgs(name);
 create index orgs_state_idx on npo.orgs(state);
 create index orgs_zip_idx on npo.orgs(zip);
-
-create index ts_idx on npo.orgs using gin(ts_index_col);
+create index orgs_ts_idx on npo.orgs using gin(ts_index_col);
+create index filings_org_id_idx on filings(org_id);
 
 alter table npo.filings add foreign key (irs_raw_id) references npo.irs_raw(id);
 alter table npo.irs_raw add foreign key (file_id) references npo.files;
@@ -121,7 +122,7 @@ create function npo.find_or_create_org(in_ein integer, _name text, state text, z
   UNION  ALL
   SELECT id FROM s;
 $$
-language sql;
+language sql volatile;
 
 create function npo.make_ts_column() returns trigger as $$
 begin
@@ -146,6 +147,5 @@ create trigger org_updated BEFORE INSERT OR UPDATE ON npo.orgs for each row exec
 -- dummy
 insert into npo.files (name, base_name) values ('irs.2002_01_PF.dat.txt', '2002_01_PF');
 insert into npo.irs_raw (file_id, ein, filing_period, taxpayer_name, state, zip, return_type, total_assets) VALUES (1, 521776572,'201210','LUKASCHUCK','CO','80907', '990',789564782);
-
 
 commit;

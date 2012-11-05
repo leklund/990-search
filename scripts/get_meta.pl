@@ -47,7 +47,7 @@ foreach my $mo (0..$totmo) {
       mkdir $final_dest or die "Unable to mkdir $final_dest: $!\n";
     }
 
-    my $cmd = qq{rsync -rtzq --exclude="htaccess*" --chmod=u+w bulk.resource.org::bulk/irs.gov/eo/$name/*$name*.txt $final_dest};
+    my $cmd = qq{rsync -rtzq --exclude="htaccess*" --chmod=u+w bulk.resource.org::bulk/irs.gov/eo/$name/irs*$name*.txt $final_dest};
 
     my $out = system($cmd);
     if ($out != 0) {

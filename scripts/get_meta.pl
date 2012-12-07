@@ -5,7 +5,8 @@ use warnings;
 use DateTime;
 use Cwd qw(abs_path);
 
-# bulk resource has data back through 2002 and their rsync is SLOOOOOOOOW.
+# bulk resource has data back through 2002 and their rsync is SLOOOOOOOOW
+# and doesn't seem to like large file lists.
 # So instead generate links to every meta data and raw file per month.
 # The format is:
 # 2012_09_T/manifest.2012_09_T.txt
@@ -18,17 +19,25 @@ use Cwd qw(abs_path);
 # There is also a file called "htaccess.2012_09_T.txt" that has some nice human
 # readable descriptions.
 
+my $opt = shift;
+
+
 my $dest= abs_path($0);
 $dest =~ s/scripts\/get_meta\.pl$/manifests\//ogi;
 unless (-d $dest) {
   mkdir $dest or die "Unable to mkdir $dest: $!\n";
 }
-
-my $start = DateTime->new(
-  year  =>  2002,
-  month =>  1,
-  day   =>  1
-);
+my $start;
+if ($opt eq 'recent') {
+  $start = DateTime->now;
+  $start->subtract(months => 6);
+} else {
+  $start = DateTime->new(
+    year  =>  2002,
+    month =>  1,
+    day   =>  1
+  );
+}
 my $end = DateTime->now;
 my $dur = $start - $end;
 

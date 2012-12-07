@@ -26,7 +26,7 @@ create table npo.irs_raw(
   zip text,
   return_type text,
   subsection_code text,
-  total_assets bigint,
+  total_assets float,
   scan_date date,
   created_at timestamp with time zone not null default now()
 );
@@ -52,7 +52,7 @@ create table npo.filings (
   filing_date date not null,
   org_id integer not null,
   irs_raw_id integer not null,
-  total_assets bigint,
+  total_assets float,
   pdf_path text,
   form_type text,
   created_at timestamp with time zone not null default now()
@@ -146,7 +146,8 @@ language plpgsql;
 create trigger org_updated BEFORE INSERT OR UPDATE ON npo.orgs for each row execute procedure npo.make_ts_column();
 
 -- dummy
+/*
 insert into npo.files (name, base_name) values ('irs.2002_01_PF.dat.txt', '2002_01_PF');
 insert into npo.irs_raw (file_id, ein, filing_period, taxpayer_name, state, zip, return_type, total_assets) VALUES (1, 521776572,'201210','LUKASCHUCK','CO','80907', '990',789564782);
-
+*/
 commit;

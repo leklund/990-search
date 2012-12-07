@@ -12,7 +12,8 @@ create table npo.files(
   id serial primary key,
   name text,
   base_name text,
-  imported boolean not null default false
+  imported boolean not null default false,
+  hash text
 );
 
 create table npo.irs_raw(
@@ -64,7 +65,7 @@ create index orgs_name_idx on npo.orgs(name);
 create index orgs_state_idx on npo.orgs(state);
 create index orgs_zip_idx on npo.orgs(zip);
 create index orgs_ts_idx on npo.orgs using gin(ts_index_col);
-create index filings_org_id_idx on filings(org_id);
+create index filings_org_id_idx on npo.filings(org_id);
 
 alter table npo.filings add foreign key (irs_raw_id) references npo.irs_raw(id);
 alter table npo.irs_raw add foreign key (file_id) references npo.files;
@@ -90,7 +91,7 @@ begin
   for raw in (select * from npo.irs_raw where file_id = new.id) loop
     if _ein = 0 or _ein != raw.ein then
       select find_or_create_org(raw.ein, raw.taxpayer_name, raw.state, raw.zip) into _org_id;
-      insert into filings
+      insert into npo.filings
         (filing_date, org_id, irs_raw_id, total_assets, pdf_path, form_type)
         values
         ((raw.filing_period || '01')::date, _org_id, raw.id, raw.total_assets, make_path_name(raw.file_id, raw.ein, raw.return_type, raw.filing_period), raw.return_type);

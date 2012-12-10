@@ -14,8 +14,11 @@ use Thread::Queue;
 use Data::Dumper;
 
 my $THREADS = 5;
+# threading failed for the triggered inserts. stupid deadlocks.
+my $THREADSUCK = 1;
 # work queue
 my $qbert = Thread::Queue->new();
+my $qbert20 = Thread::Queue->new();
 
 
 # get all irs files in the manifests directory
@@ -27,8 +30,8 @@ my $qbert = Thread::Queue->new();
 my $manifests = abs_path($0);
 $manifests =~ s/scripts\/import\.pl/manifests\//ogi;
 chdir $manifests;
-my @files = glob('*/irs.2002*.txt');
-#my @files = glob('*/irs*.txt');
+#my @files = glob('*/irs.2002*.txt');
+my @files = glob('*/irs*.txt');
 
 
 foreach (@files) {
@@ -57,21 +60,18 @@ threads->create("importer") for(1..$THREADS);
 # faux signals
 $qbert->enqueue("EXIT") for(1..$THREADS);
 
-#my $test = $qbert->dequeue();
-
-#print Dumper($test);
-
-#my $foo = system(qq{cut -d , -f1-9 $test->{full_path} > $test->{file}.tempfile});
-#print $foo;
-#my $cmd = qq{PGPASS=b4k3rSTReeT psql -U sherlock -h 127.0.0.1 ninenine -c 'select * from npo.files'};
-
-#print `$cmd`;
-
-
 while(threads->list(threads::running)){
   sleep 10;
 }
 
+print "file imports complete. fire triggers at will\n";
+#part one. done.
+threads->create("finisher") for (1..$THREADSUCK);
+$qbert20->enqueue("EXIT") for(1..$THREADSUCK);
+
+while(threads->list(threads::running)){
+  sleep 10;
+}
 
 sub importer {
   my $db = get_db_handle();
@@ -93,8 +93,11 @@ sub importer {
     if ($out == 0) {
       #remove pesky carriage returns
       `sed -i '' -e 's///g' $tmpfile`;
+      # remove backslashes preceding commas
+      `sed -i '' -e 's/\\\\\\,/,/g' $tmpfile`;
       my $cmd = qq{PGPASS=b4k3rSTReeT psql -U sherlock -h 127.0.0.1 ninenine -c "\\copy npo.irs_raw (file_id,ein,filing_period,taxpayer_name,state,zip,return_type,subsection_code,total_assets,scan_date) from $tmpfile with delimiter ','"};
       my $sqlout =  `$cmd 2>&1`;
+      print "import finished $work->{file}\n";
       if ($sqlout =~ /error/i) {
         print "There seems to have been an error with $work->{file}\n$sqlout\n";
         print "Fix the file and try again\n";
@@ -103,9 +106,7 @@ sub importer {
         $db->commit;
         next;
       } else {
-        $db->begin;
-        $res = $db->do(q{ update files set imported = 't' where id = ? }, $file_id);
-        $db->commit if $db->in_transaction;
+        $qbert20->enqueue($file_id);
       }
       unlink $tmpfile;
     } else {
@@ -115,15 +116,32 @@ sub importer {
   threads->detach;
 }
 
+sub finisher {
+  my $db = get_db_handle();
+  while(my $file_id=$qbert20->dequeue()) {
+    print "next file $file_id ...  \n";
+    last if $file_id eq 'EXIT';
+    $db->begin;
+    my $res = $db->do(q{ update files set imported = 't' where id = ? }, $file_id);
+    $db->commit if $db->in_transaction;
+  }
+  threads->detach;
+}
+
+
 sub get_db_handle {
   my $conf = {
+    cache_connections => 0,
     primary => {
       driver => 'Pg',
       database => 'ninenine',
       host => '127.0.0.1',
       user => 'sherlock',
       pass => 'b4k3rSTReeT',
-      schemas => ['npo','public']
+      schemas => ['npo','public'],
+      dbd_opts => {
+        AutoCommit => 0
+      }
     },
   };
   my $dbh = DBIx::DataStore->new({config => $conf});

@@ -109,14 +109,13 @@ for each row
   execute procedure npo.post_import_work();
 
 create function npo.find_or_create_org(in_ein integer, _name text, state text, zip text) RETURNS integer as $$
-  WITH v AS (SELECT $1 AS ein),
+  WITH v AS (SELECT $1 AS ein, $2 as name, $3 as state, $4 as zip),
        s AS (SELECT id FROM npo.orgs JOIN v USING (ein)),
        i AS (
          INSERT INTO npo.orgs (ein, name, state, zip)
-         values
-         ((SELECT ein
+         (SELECT ein, name, state, zip
          FROM   v
-         WHERE  NOT EXISTS (SELECT * FROM s)), $2, $3, $4)
+         WHERE  NOT EXISTS (SELECT * FROM s))
          RETURNING id
          )
   SELECT id FROM i

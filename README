@@ -1,1 +1,21 @@
-get down. 
+1. run get_meta.pl
+
+2. patch:
+
+  after you run get_meta.pl, run this in the manifests directory:
+
+    for i in *.patch; do patch -p0 --dry-run < $i; done
+
+3. set up the database
+  * databse name: 'ninenine'
+  * user: 'sherlock'
+  * password 'somepassword'
+  This user should have full ctonrol of the ninenine database
+
+4. Run the DDL
+  pql -U sherlock ninenine -f ./etc/ddl.sql
+
+5. import the metadata
+
+  keep fingers crossed for no errors
+  This takes a long time. Would be nice to speed this up...
